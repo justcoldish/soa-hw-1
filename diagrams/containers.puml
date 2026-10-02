@@ -1,0 +1,72 @@
+@startuml containers
+!include <C4/C4_Container>
+
+title Маркетплейс - C4 Container
+
+LAYOUT_TOP_DOWN()
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+skinparam linetype polyline
+skinparam nodesep 40
+skinparam ranksep 55
+skinparam wrapWidth 180
+skinparam maxMessageSize 180
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam legendBackgroundColor #FFFFFF
+skinparam legendBorderColor #FFFFFF
+skinparam legendFontColor #25313D
+
+UpdateElementStyle("person", $bgColor="#F1F3F5", $fontColor="#25313D", $borderColor="#85919D")
+UpdateElementStyle("container", $bgColor="#FFFFFF", $fontColor="#25313D", $borderColor="#85919D")
+UpdateElementStyle("external_system", $bgColor="#F1F3F5", $fontColor="#25313D", $borderColor="#85919D")
+AddRelTag("async", $lineColor="#586879", $lineStyle=DashedLine(), $legendText="Асинхронно: callback или SSE")
+
+<style>
+.container {
+    MinimumWidth 170
+}
+</style>
+
+Person(buyer, "Покупатель", "Покупка товаров")
+Person(seller, "Продавец", "Продажа товаров")
+
+System_Boundary(marketplace, "Маркетплейс") {
+    Container(web, "Web", "React", "Интерфейс маркетплейса")
+    Container(users, "Users", "FastAPI", "Аккаунты и предпочтения")
+    Container(catalog, "Catalog & Feed", "FastAPI", "Товары и лента")
+    Container(orders, "Orders", "FastAPI", "Заказы и уведомления")
+    Container(payments, "Payments", "FastAPI", "Учет платежей")
+
+    ContainerDb(usersDb, "Users DB", "PostgreSQL", "Аккаунты и предпочтения")
+    ContainerDb(catalogDb, "Catalog DB", "PostgreSQL", "Товары и цены")
+    ContainerDb(ordersDb, "Orders DB", "PostgreSQL", "Заказы и уведомления")
+    ContainerDb(paymentsDb, "Payments DB", "PostgreSQL", "Платежные попытки")
+}
+
+System_Ext(psp, "Платежный провайдер", "Прием оплаты")
+
+Rel_D(buyer, web, "Оформляет заказы", "HTTPS")
+Rel_D(seller, web, "Управляет товарами", "HTTPS")
+Rel_D(web, users, "Вход и профиль", "REST")
+Rel_D(web, catalog, "Товары и лента", "REST")
+Rel_D(web, orders, "Заказы и оплата", "REST")
+Rel_U(orders, web, "Уведомления", "SSE", $tags="async")
+Rel_L(catalog, users, "Предпочтения", "REST")
+Rel_L(orders, catalog, "Товары и цены", "REST")
+Rel_R(orders, payments, "Создать платеж", "REST")
+Rel_L(payments, orders, "Итог оплаты", "callback", $tags="async")
+Rel_R(payments, psp, "Создать сессию", "API")
+Rel_L(psp, payments, "Итог оплаты", "callback", $tags="async")
+
+Rel_D(users, usersDb, "Чтение / запись", "SQL")
+Rel_D(catalog, catalogDb, "Чтение / запись", "SQL")
+Rel_D(orders, ordersDb, "Чтение / запись", "SQL")
+Rel_D(payments, paymentsDb, "Чтение / запись", "SQL")
+
+legend right
+Сплошная линия - синхронный запрос
+Пунктирная линия - асинхронное сообщение
+REST, API, callback и SSE работают по HTTPS
+endlegend
+@enduml
